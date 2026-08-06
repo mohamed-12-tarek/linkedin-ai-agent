@@ -80,6 +80,9 @@ class FakeFactory:
     def create_for_role(self, user_id, role):
         return FakeModel(role)
 
+    def metadata_for_role(self, user_id, role):
+        return {"provider": "fake", "model_name": f"fake-{role}", "cost_per_1k": 0}
+
 
 def make_context(factory: FakeFactory) -> ExecutionContext:
     return ExecutionContext(
@@ -92,7 +95,12 @@ def make_context(factory: FakeFactory) -> ExecutionContext:
 
 
 def test_graph_1_runs_all_nodes_with_fake_models() -> None:
-    workflow = build_post_generation_workflow(PromptEngine(StyleEngine()))
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    workflow = build_post_generation_workflow(
+        PromptEngine(StyleEngine()), checkpointer=InMemorySaver()
+    )
+    context = make_context(FakeFactory())
     state = {
         "topic": "Resilient systems",
         "description": "A practical lesson",
@@ -108,7 +116,7 @@ def test_graph_1_runs_all_nodes_with_fake_models() -> None:
         "revisions": [],
     }
 
-    result = workflow.invoke(state, make_context(FakeFactory()))
+    result = workflow.invoke(state, context, thread_id=str(context.execution_id))
 
     assert result["completed_nodes"] == [
         "planner",
@@ -118,13 +126,10 @@ def test_graph_1_runs_all_nodes_with_fake_models() -> None:
         "cta_optimizer",
         "grammar_checker",
         "final_judge",
-        "telegram_approval",
-        "linkedin_publisher",
     ]
     assert result["content"] == "A final practical post."
     assert result["judge_approved"] is True
-    assert result["approval_required"] is True
-    assert result["publishing_deferred"] is True
+    assert result["__interrupt__"]
     assert [revision["node"] for revision in result["revisions"]] == [
         "writer",
         "reviewer",
@@ -133,6 +138,42 @@ def test_graph_1_runs_all_nodes_with_fake_models() -> None:
         "grammar_checker",
         "final_judge",
     ]
+
+    approved = workflow.resume("approve", context, str(context.execution_id))
+    assert approved["status"] == "approved"
+    assert approved["publishing_deferred"] is True
+    assert approved["completed_nodes"][-2:] == ["telegram_approval", "linkedin_publisher"]
+
+
+def test_rewrite_resumes_same_thread_and_returns_to_approval() -> None:
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    workflow = build_post_generation_workflow(
+        PromptEngine(StyleEngine()), checkpointer=InMemorySaver()
+    )
+    context = make_context(FakeFactory())
+    state = {
+        "topic": "Resilient systems",
+        "description": "A practical lesson",
+        "objective": "educate",
+        "audience": "engineers",
+        "language": "English",
+        "length": "medium",
+        "cta_type": "engagement",
+        "emoji_level": "low",
+        "hashtag_mode": "auto",
+        "completed_nodes": [],
+        "errors": [],
+        "revisions": [],
+    }
+    thread_id = str(context.execution_id)
+    workflow.invoke(state, context, thread_id=thread_id)
+
+    rewritten = workflow.resume("rewrite", context, thread_id)
+
+    assert rewritten["__interrupt__"]
+    assert rewritten["completed_nodes"].count("writer") == 2
+    assert rewritten["completed_nodes"].count("final_judge") == 2
 
 
 def make_service() -> tuple[Session, PostGenerationService, User]:

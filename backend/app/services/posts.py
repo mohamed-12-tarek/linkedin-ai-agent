@@ -18,11 +18,14 @@ class StyleNotFoundError(Exception):
 
 
 class PostGenerationService:
-    def __init__(self, repository, workflow, model_factory, prompt_engine) -> None:
+    def __init__(
+        self, repository, workflow, model_factory, prompt_engine, approval_service=None
+    ) -> None:
         self.repository = repository
         self.workflow = workflow
         self.model_factory = model_factory
         self.prompt_engine = prompt_engine
+        self.approval_service = approval_service
 
     def list_posts(self, user_id: uuid.UUID) -> list[PostRead]:
         return [PostRead.model_validate(post) for post in self.repository.list_for_user(user_id)]
@@ -61,7 +64,6 @@ class PostGenerationService:
             "errors": [],
             "revisions": [],
         }
-        result = self.workflow.invoke(initial_state, context)
         post = Post(
             user_id=user_id,
             style_id=data.style_id,
@@ -75,12 +77,30 @@ class PostGenerationService:
             cta_type=data.cta_type,
             emoji_level=data.emoji_level,
             hashtag_mode=data.hashtag_mode,
-            content=result["content"],
-            hook=result.get("hook"),
-            cta_text=result.get("cta"),
-            hashtags=" ".join(result.get("hashtags", [])),
-            status=result.get("status", "awaiting_approval"),
+            content=None,
+            hook=None,
+            cta_text=None,
+            hashtags=None,
+            status="generating",
         )
+        if self.approval_service is not None:
+            try:
+                self.repository.add_post(post)
+                self.repository.session.commit()
+                self.approval_service.start(user_id, post, initial_state, style)
+            except Exception:
+                self.repository.session.rollback()
+                raise
+            stored = self.repository.get_for_user(user_id, post.id)
+            if stored is None:
+                raise RuntimeError("Generated post could not be reloaded")
+            return PostRead.model_validate(stored)
+        result = self.workflow.invoke(initial_state, context)
+        post.content = result["content"]
+        post.hook = result.get("hook")
+        post.cta_text = result.get("cta")
+        post.hashtags = " ".join(result.get("hashtags", []))
+        post.status = result.get("status", "awaiting_approval")
         try:
             self.repository.add_post(post)
             for number, revision in enumerate(result.get("revisions", []), start=1):
@@ -125,6 +145,21 @@ class PostGenerationService:
         node = CTAOptimizerNode(self._node_config("cta_optimizer"), self.prompt_engine)
         update = node.invoke(self._state_from_post(post), self._context(user_id, post))
         return self._apply_revision(post, update, "regenerate_cta")
+
+    def resume_action(
+        self,
+        user_id: uuid.UUID,
+        post_id: uuid.UUID,
+        action: str,
+        external_event_id: str,
+    ) -> PostRead:
+        if self.approval_service is None:
+            raise RuntimeError("Approval workflow is not configured")
+        execution = self.approval_service.executions.get_active_for_post(user_id, post_id)
+        if execution is None:
+            raise PostNotFoundError
+        self.approval_service.resume(execution.id, action, external_event_id)
+        return self.get_post(user_id, post_id)
 
     def _get_post(self, user_id: uuid.UUID, post_id: uuid.UUID) -> Post:
         post = self.repository.get_for_user(user_id, post_id)

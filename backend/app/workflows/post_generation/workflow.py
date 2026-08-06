@@ -7,14 +7,16 @@ from app.workflows.post_generation.nodes import (
     HookOptimizerNode,
     PlannerNode,
     PublisherBoundaryNode,
+    RejectionNode,
     ReviewerNode,
+    TranslatorNode,
     WriterNode,
 )
 from app.workflows.post_generation.state import PostGenerationState
 from app.workflows.registry import NodeRegistry
 
 
-def build_post_generation_workflow(prompt_engine):
+def build_post_generation_workflow(prompt_engine, checkpointer=None):
     from app.workflows.workflow import WorkflowBuilder
 
     registry = NodeRegistry()
@@ -29,6 +31,10 @@ def build_post_generation_workflow(prompt_engine):
         "post.grammar_checker", lambda config: GrammarCheckerNode(config, prompt_engine)
     )
     registry.register("post.final_judge", lambda config: FinalJudgeNode(config, prompt_engine))
+    registry.register("post.translator", lambda config: TranslatorNode(config, prompt_engine))
     registry.register("post.approval_boundary", ApprovalBoundaryNode)
     registry.register("post.publisher_boundary", PublisherBoundaryNode)
-    return WorkflowBuilder(registry).build(POST_GENERATION_CONFIG, PostGenerationState)
+    registry.register("post.rejection", RejectionNode)
+    return WorkflowBuilder(registry).build(
+        POST_GENERATION_CONFIG, PostGenerationState, checkpointer=checkpointer
+    )

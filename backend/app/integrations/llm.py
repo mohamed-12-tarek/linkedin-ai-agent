@@ -13,6 +13,8 @@ from app.services.model_registry import ModelRegistryService
 class ChatModelFactory(Protocol):
     def create_for_role(self, user_id: uuid.UUID, role_type: str) -> BaseChatModel: ...
 
+    def metadata_for_role(self, user_id: uuid.UUID, role_type: str) -> dict: ...
+
 
 class LangChainChatModelFactory:
     def __init__(self, registry: ModelRegistryService, settings: Settings) -> None:
@@ -45,6 +47,14 @@ class LangChainChatModelFactory:
                 **common,
             )
         raise ValueError(f"Unsupported provider '{model.provider}'")
+
+    def metadata_for_role(self, user_id: uuid.UUID, role_type: str) -> dict:
+        model = self.registry.resolve_model(user_id, role_type)
+        return {
+            "provider": model.provider,
+            "model_name": model.name,
+            "cost_per_1k": model.cost_per_1k or 0,
+        }
 
     def _provider_api_key(self, provider: str) -> str:
         return {

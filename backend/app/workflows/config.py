@@ -27,6 +27,7 @@ class NodeConfig(BaseModel):
     prompt_template: str | None = None
     settings: dict[str, Any] = Field(default_factory=dict)
     retry: RetryConfig | None = None
+    routes: dict[str, str] = Field(default_factory=dict)
 
 
 class EdgeConfig(BaseModel):

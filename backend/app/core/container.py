@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from app.core.config import Settings
 from app.core.security import EncryptionService
 from app.db.session import Database
+from app.workflows.checkpoints import WorkflowCheckpointStore
 from app.workflows.prompts import PromptEngine
 from app.workflows.registry import GraphRegistry, NodeRegistry
 from app.workflows.styles import StyleEngine
@@ -17,6 +18,7 @@ class ApplicationContainer:
     prompt_engine: PromptEngine
     node_registry: NodeRegistry
     graph_registry: GraphRegistry
+    checkpoint_store: WorkflowCheckpointStore
 
 
 def create_container(settings: Settings) -> ApplicationContainer:
@@ -29,4 +31,5 @@ def create_container(settings: Settings) -> ApplicationContainer:
         prompt_engine=PromptEngine(style_engine),
         node_registry=NodeRegistry(),
         graph_registry=GraphRegistry(),
+        checkpoint_store=WorkflowCheckpointStore(settings),
     )

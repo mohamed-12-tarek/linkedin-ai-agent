@@ -81,4 +81,13 @@ POST_PROMPTS = {
             '"hashtags": [string]}.'
         ),
     ),
+    "translator": PromptTemplate(
+        name="post.translator",
+        system_template=(
+            "You translate LinkedIn content while preserving meaning, formatting, hook, CTA, "
+            "and style. {style_instructions}"
+        ),
+        user_template="Translate this post into {target_language}:\n\n{content}",
+        output_instructions='Return JSON: {"content": string, "language": string}.',
+    ),
 }

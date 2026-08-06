@@ -4,8 +4,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.dependencies import Container, CurrentUserId, DatabaseSession
+from app.integrations.telegram import TelegramClient
 from app.repositories.model_registry import ModelRegistryRepository
 from app.repositories.posts import PostRepository
+from app.repositories.workflow_executions import WorkflowExecutionRepository
 from app.schemas.posts import PostGenerateRequest, PostRead
 from app.services.model_registry import ModelRegistryService
 from app.services.posts import (
@@ -13,6 +15,7 @@ from app.services.posts import (
     PostNotFoundError,
     StyleNotFoundError,
 )
+from app.services.workflow_approvals import WorkflowApprovalService
 from app.workflows.post_generation.workflow import build_post_generation_workflow
 from app.workflows.registry import RegistryError
 
@@ -27,13 +30,29 @@ def get_post_service(db: DatabaseSession, container: Container) -> PostGeneratio
     try:
         workflow = container.graph_registry.get("post_generation", "1.0.0")
     except RegistryError:
-        workflow = build_post_generation_workflow(container.prompt_engine)
+        workflow = build_post_generation_workflow(
+            container.prompt_engine, checkpointer=container.checkpoint_store.saver
+        )
         try:
             container.graph_registry.register(workflow)
         except RegistryError:
             workflow = container.graph_registry.get("post_generation", "1.0.0")
+    post_repository = PostRepository(db)
+    approval_service = WorkflowApprovalService(
+        WorkflowExecutionRepository(db),
+        post_repository,
+        workflow,
+        model_factory,
+        container.prompt_engine,
+        TelegramClient(container.settings),
+        container.settings.telegram_chat_id,
+    )
     return PostGenerationService(
-        PostRepository(db), workflow, model_factory, container.prompt_engine
+        post_repository,
+        workflow,
+        model_factory,
+        container.prompt_engine,
+        approval_service,
     )
 
 
@@ -95,3 +114,31 @@ def regenerate_cta(
     service: PostService,
 ) -> PostRead:
     return _run_regeneration(service.regenerate_cta, user_id, post_id)
+
+
+@router.post("/{post_id}/approve", response_model=PostRead)
+def approve_post(post_id: uuid.UUID, user_id: CurrentUserId, service: PostService) -> PostRead:
+    return _run_regeneration(
+        lambda current_user_id, current_post_id: service.resume_action(
+            current_user_id,
+            current_post_id,
+            "approve",
+            f"api:{uuid.uuid4()}",
+        ),
+        user_id,
+        post_id,
+    )
+
+
+@router.post("/{post_id}/reject", response_model=PostRead)
+def reject_post(post_id: uuid.UUID, user_id: CurrentUserId, service: PostService) -> PostRead:
+    return _run_regeneration(
+        lambda current_user_id, current_post_id: service.resume_action(
+            current_user_id,
+            current_post_id,
+            "reject",
+            f"api:{uuid.uuid4()}",
+        ),
+        user_id,
+        post_id,
+    )

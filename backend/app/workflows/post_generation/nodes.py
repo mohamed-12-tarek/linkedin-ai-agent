@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -13,6 +14,7 @@ from app.workflows.post_generation.outputs import (
     JudgeOutput,
     PlanOutput,
     ReviewOutput,
+    TranslationOutput,
 )
 from app.workflows.post_generation.prompts import POST_PROMPTS
 from app.workflows.post_generation.state import PostGenerationState
@@ -47,16 +49,67 @@ class LLMPostNode(BaseWorkflowNode[PostGenerationState]):
             context,
         )
         model = context.create_model(self.config.model_role)
-        response = model.invoke([("system", prompt.system), ("human", prompt.user)])
+        model_metadata = context.model_metadata(self.config.model_role)
+        started = time.perf_counter()
+        try:
+            response = model.invoke([("system", prompt.system), ("human", prompt.user)])
+        except Exception as exc:
+            context.record_telemetry(
+                {
+                    "node_name": self.name,
+                    "status": "failed",
+                    "latency_ms": (time.perf_counter() - started) * 1000,
+                    "provider": model_metadata.get("provider"),
+                    "model_name": model_metadata.get("model_name"),
+                    "error_message": str(exc),
+                }
+            )
+            raise
         raw_content = response.content if hasattr(response, "content") else response
+        usage = getattr(response, "usage_metadata", {}) or {}
+        total_tokens = usage.get("total_tokens")
+        estimated_cost = None
+        if total_tokens is not None:
+            estimated_cost = total_tokens / 1000 * float(model_metadata.get("cost_per_1k", 0))
         if not isinstance(raw_content, str):
             raise ModelOutputError(f"Node '{self.name}' returned non-text output")
         try:
-            return output_schema.model_validate_json(self._strip_code_fence(raw_content))
+            parsed = output_schema.model_validate_json(self._strip_code_fence(raw_content))
         except ValidationError as exc:
-            raise ModelOutputError(
+            error = ModelOutputError(
                 f"Node '{self.name}' returned invalid structured output"
-            ) from exc
+            )
+            context.record_telemetry(
+                {
+                    "node_name": self.name,
+                    "status": "failed",
+                    "latency_ms": (time.perf_counter() - started) * 1000,
+                    "provider": model_metadata.get("provider"),
+                    "model_name": model_metadata.get("model_name"),
+                    "input_tokens": usage.get("input_tokens"),
+                    "output_tokens": usage.get("output_tokens"),
+                    "total_tokens": total_tokens,
+                    "estimated_cost": estimated_cost,
+                    "error_message": str(error),
+                }
+            )
+            raise error from exc
+        context.record_telemetry(
+            {
+                "node_name": self.name,
+                "status": "completed",
+                "latency_ms": (time.perf_counter() - started) * 1000,
+                "provider": model_metadata.get("provider") or model.__class__.__name__,
+                "model_name": model_metadata.get("model_name")
+                or getattr(model, "model_name", None)
+                or getattr(model, "model", None),
+                "input_tokens": usage.get("input_tokens"),
+                "output_tokens": usage.get("output_tokens"),
+                "total_tokens": total_tokens,
+                "estimated_cost": estimated_cost,
+            }
+        )
+        return parsed
 
     @staticmethod
     def _strip_code_fence(content: str) -> str:
@@ -146,11 +199,54 @@ class FinalJudgeNode(LLMPostNode):
         }
 
 
+class TranslatorNode(LLMPostNode):
+    def invoke(self, state: PostGenerationState, context: ExecutionContext) -> dict[str, Any]:
+        target_language = context.variables.get("target_language", state.get("language", "English"))
+        output = self.run_model(
+            state,
+            context,
+            TranslationOutput,
+            target_language=target_language,
+        )
+        return {
+            "content": output.content,
+            "language": output.language,
+            "revisions": self.revision(self.name, output.content),
+        }
+
+
 class ApprovalBoundaryNode(BaseWorkflowNode[PostGenerationState]):
     def invoke(self, state: PostGenerationState, context: ExecutionContext) -> dict[str, Any]:
-        return {"approval_required": True, "status": "awaiting_approval"}
+        from langgraph.types import interrupt
+
+        action = interrupt(
+            {
+                "execution_id": str(context.execution_id),
+                "actions": [
+                    "approve", "reject", "rewrite", "regenerate_hook", "regenerate_cta",
+                    "shorter", "longer", "professional", "friendly", "technical", "translate",
+                ],
+            }
+        )
+        update: dict[str, Any] = {"workflow_action": str(action), "approval_required": True}
+        if action == "shorter":
+            update["length"] = "short"
+        elif action == "longer":
+            update["length"] = "long"
+        elif action in {"professional", "friendly", "technical"}:
+            update["tone"] = action
+        return update
 
 
 class PublisherBoundaryNode(BaseWorkflowNode[PostGenerationState]):
     def invoke(self, state: PostGenerationState, context: ExecutionContext) -> dict[str, Any]:
-        return {"publishing_deferred": True, "status": "awaiting_approval"}
+        return {
+            "publishing_deferred": True,
+            "approval_required": False,
+            "status": "approved",
+        }
+
+
+class RejectionNode(BaseWorkflowNode[PostGenerationState]):
+    def invoke(self, state: PostGenerationState, context: ExecutionContext) -> dict[str, Any]:
+        return {"status": "rejected", "approval_required": False}

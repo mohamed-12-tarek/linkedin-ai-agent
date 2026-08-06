@@ -49,6 +49,9 @@ class User(Base):
     settings: Mapped[UserSettings | None] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
+    workflow_executions: Mapped[list[WorkflowExecution]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class LLMModel(Base):
@@ -143,6 +146,9 @@ class Post(Base):
         back_populates="post", uselist=False, cascade="all, delete-orphan"
     )
     publish_history: Mapped[list[PublishHistory]] = relationship(
+        back_populates="post", cascade="all, delete-orphan"
+    )
+    workflow_executions: Mapped[list[WorkflowExecution]] = relationship(
         back_populates="post", cascade="all, delete-orphan"
     )
 
@@ -287,3 +293,82 @@ class UserSettings(Base):
     job_matching_settings_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     user: Mapped[User] = relationship(back_populates="settings")
     default_style: Mapped[Style | None] = relationship(foreign_keys=[default_style_id])
+
+
+class WorkflowExecution(Base):
+    __tablename__ = "workflow_executions"
+    __table_args__ = (
+        Index("ix_workflow_executions_user_created", "user_id", "created_at"),
+        Index("ix_workflow_executions_post_status", "post_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_column()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("posts.id"))
+    workflow_name: Mapped[str] = mapped_column(String)
+    workflow_version: Mapped[str] = mapped_column(String)
+    thread_id: Mapped[str] = mapped_column(String, unique=True)
+    status: Mapped[str] = mapped_column(String)
+    current_node: Mapped[str | None] = mapped_column(String, nullable=True)
+    input_json: Mapped[str] = mapped_column(Text)
+    state_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = created_at_column()
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = created_at_column()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    user: Mapped[User] = relationship(back_populates="workflow_executions")
+    post: Mapped[Post] = relationship(back_populates="workflow_executions")
+    node_executions: Mapped[list[WorkflowNodeExecution]] = relationship(
+        back_populates="execution", cascade="all, delete-orphan"
+    )
+    actions: Mapped[list[WorkflowAction]] = relationship(
+        back_populates="execution", cascade="all, delete-orphan"
+    )
+
+
+class WorkflowNodeExecution(Base):
+    __tablename__ = "workflow_node_executions"
+    __table_args__ = (
+        Index("ix_workflow_node_executions_execution_node", "execution_id", "node_name"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_column()
+    execution_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workflow_executions.id"))
+    node_name: Mapped[str] = mapped_column(String)
+    attempt_number: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String)
+    provider: Mapped[str | None] = mapped_column(String, nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estimated_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = created_at_column()
+    completed_at: Mapped[datetime] = created_at_column()
+
+    execution: Mapped[WorkflowExecution] = relationship(back_populates="node_executions")
+
+
+class WorkflowAction(Base):
+    __tablename__ = "workflow_actions"
+    __table_args__ = (
+        Index("ix_workflow_actions_execution_created", "execution_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_column()
+    execution_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workflow_executions.id"))
+    external_event_id: Mapped[str] = mapped_column(String, unique=True)
+    action: Mapped[str] = mapped_column(String)
+    payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = created_at_column()
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    execution: Mapped[WorkflowExecution] = relationship(back_populates="actions")

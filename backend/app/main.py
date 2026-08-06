@@ -16,8 +16,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         container.database.connect()
+        container.checkpoint_store.connect()
         application.state.container = container
         yield
+        container.checkpoint_store.disconnect()
         container.database.disconnect()
 
     application = FastAPI(

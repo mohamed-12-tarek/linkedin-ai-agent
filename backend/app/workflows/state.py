@@ -11,6 +11,7 @@ class GraphState(TypedDict, total=False):
     current_node: str
     completed_nodes: Annotated[list[str], operator.add]
     errors: Annotated[list[str], operator.add]
+    workflow_action: str
 
 
 class ContentGraphState(GraphState, total=False):

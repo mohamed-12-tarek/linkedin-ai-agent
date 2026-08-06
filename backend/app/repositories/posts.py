@@ -43,5 +43,10 @@ class PostRepository:
         )
         return (current or 0) + 1
 
+    def version_count(self, post_id: uuid.UUID) -> int:
+        return self.session.scalar(
+            select(func.count(PostVersion.id)).where(PostVersion.post_id == post_id)
+        ) or 0
+
     def add_version(self, version: PostVersion) -> None:
         self.session.add(version)

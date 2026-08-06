@@ -28,6 +28,10 @@ class GrammarOutput(ContentOutput):
     corrections: list[str] = []
 
 
+class TranslationOutput(ContentOutput):
+    language: str = Field(min_length=1)
+
+
 class JudgeOutput(ContentOutput):
     approved: bool
     score: float = Field(ge=0, le=100)

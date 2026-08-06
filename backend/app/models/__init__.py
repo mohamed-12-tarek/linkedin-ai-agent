@@ -15,6 +15,9 @@ from app.models.entities import (
     TelegramMessage,
     User,
     UserSettings,
+    WorkflowAction,
+    WorkflowExecution,
+    WorkflowNodeExecution,
 )
 
 __all__ = [
@@ -34,4 +37,7 @@ __all__ = [
     "TelegramMessage",
     "User",
     "UserSettings",
+    "WorkflowAction",
+    "WorkflowExecution",
+    "WorkflowNodeExecution",
 ]

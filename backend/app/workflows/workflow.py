@@ -2,7 +2,7 @@ from typing import Protocol, TypeVar
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
-from langgraph.types import RetryPolicy
+from langgraph.types import Command, RetryPolicy
 
 from app.workflows.config import END_NODE, START_NODE, WorkflowConfig
 from app.workflows.context import ExecutionContext
@@ -36,11 +36,21 @@ class CompiledWorkflow[StateT: GraphState]:
     def version(self) -> str:
         return self.config.version
 
-    def invoke(self, state: StateT, context: ExecutionContext) -> StateT:
-        return self.graph.invoke(state, context=context)
+    def invoke(
+        self, state: StateT, context: ExecutionContext, thread_id: str | None = None
+    ) -> StateT:
+        config = {"configurable": {"thread_id": thread_id}} if thread_id else None
+        return self.graph.invoke(state, config=config, context=context)
 
-    async def ainvoke(self, state: StateT, context: ExecutionContext) -> StateT:
-        return await self.graph.ainvoke(state, context=context)
+    async def ainvoke(
+        self, state: StateT, context: ExecutionContext, thread_id: str | None = None
+    ) -> StateT:
+        config = {"configurable": {"thread_id": thread_id}} if thread_id else None
+        return await self.graph.ainvoke(state, config=config, context=context)
+
+    def resume(self, action: str, context: ExecutionContext, thread_id: str) -> StateT:
+        config = {"configurable": {"thread_id": thread_id}}
+        return self.graph.invoke(Command(resume=action), config=config, context=context)
 
 
 class WorkflowBuilder:
@@ -51,6 +61,7 @@ class WorkflowBuilder:
         self,
         config: WorkflowConfig,
         state_schema: type[StateT],
+        checkpointer=None,
     ) -> CompiledWorkflow[StateT]:
         graph = StateGraph(state_schema, context_schema=ExecutionContext)
         for node_config in config.nodes:
@@ -65,9 +76,21 @@ class WorkflowBuilder:
                     "model_role": node_config.model_role.value if node_config.model_role else None,
                 },
             )
+            if node_config.routes:
+                graph.add_conditional_edges(
+                    node_config.id,
+                    lambda state: state.get("workflow_action"),
+                    {
+                        action: self._edge_name(target)
+                        for action, target in node_config.routes.items()
+                    },
+                )
         for edge in config.edges:
-            graph.add_edge(self._edge_name(edge.source), self._edge_name(edge.target))
-        return CompiledWorkflow(config, graph.compile())
+            if not any(
+                edge.source == node.id and node.routes for node in config.nodes
+            ):
+                graph.add_edge(self._edge_name(edge.source), self._edge_name(edge.target))
+        return CompiledWorkflow(config, graph.compile(checkpointer=checkpointer))
 
     @staticmethod
     def _node_action(node):
