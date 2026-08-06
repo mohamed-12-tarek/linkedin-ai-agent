@@ -1,0 +1,70 @@
+from app.workflows.config import EdgeConfig, NodeConfig, RetryConfig, WorkflowConfig
+from app.workflows.types import ModelRole
+
+POST_GENERATION_CONFIG = WorkflowConfig(
+    name="post_generation",
+    version="1.0.0",
+    description="Generate, refine, judge, and stage a LinkedIn post for human approval.",
+    nodes=(
+        NodeConfig(
+            id="planner",
+            type="post.planner",
+            model_role=ModelRole.WRITER,
+            prompt_template="planner",
+            retry=RetryConfig(max_attempts=2),
+        ),
+        NodeConfig(
+            id="writer",
+            type="post.writer",
+            model_role=ModelRole.WRITER,
+            prompt_template="writer",
+            retry=RetryConfig(max_attempts=2),
+        ),
+        NodeConfig(
+            id="reviewer",
+            type="post.reviewer",
+            model_role=ModelRole.REVIEWER,
+            prompt_template="reviewer",
+            retry=RetryConfig(max_attempts=2),
+        ),
+        NodeConfig(
+            id="hook_optimizer",
+            type="post.hook_optimizer",
+            model_role=ModelRole.WRITER,
+            prompt_template="hook_optimizer",
+        ),
+        NodeConfig(
+            id="cta_optimizer",
+            type="post.cta_optimizer",
+            model_role=ModelRole.WRITER,
+            prompt_template="cta_optimizer",
+        ),
+        NodeConfig(
+            id="grammar_checker",
+            type="post.grammar_checker",
+            model_role=ModelRole.REVIEWER,
+            prompt_template="grammar_checker",
+        ),
+        NodeConfig(
+            id="final_judge",
+            type="post.final_judge",
+            model_role=ModelRole.JUDGE,
+            prompt_template="final_judge",
+            retry=RetryConfig(max_attempts=2),
+        ),
+        NodeConfig(id="telegram_approval", type="post.approval_boundary"),
+        NodeConfig(id="linkedin_publisher", type="post.publisher_boundary"),
+    ),
+    edges=(
+        EdgeConfig(source="$start", target="planner"),
+        EdgeConfig(source="planner", target="writer"),
+        EdgeConfig(source="writer", target="reviewer"),
+        EdgeConfig(source="reviewer", target="hook_optimizer"),
+        EdgeConfig(source="hook_optimizer", target="cta_optimizer"),
+        EdgeConfig(source="cta_optimizer", target="grammar_checker"),
+        EdgeConfig(source="grammar_checker", target="final_judge"),
+        EdgeConfig(source="final_judge", target="telegram_approval"),
+        EdgeConfig(source="telegram_approval", target="linkedin_publisher"),
+        EdgeConfig(source="linkedin_publisher", target="$end"),
+    ),
+)

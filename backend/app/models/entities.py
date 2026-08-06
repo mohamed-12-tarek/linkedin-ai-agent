@@ -102,6 +102,7 @@ class Style(Base):
 
 class Post(Base):
     __tablename__ = "posts"
+    __table_args__ = (Index("ix_posts_user_created_at", "user_id", "created_at"),)
 
     id: Mapped[uuid.UUID] = uuid_column()
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
@@ -130,7 +131,9 @@ class Post(Base):
     user: Mapped[User] = relationship(back_populates="posts")
     style: Mapped[Style | None] = relationship(back_populates="posts")
     versions: Mapped[list[PostVersion]] = relationship(
-        back_populates="post", cascade="all, delete-orphan"
+        back_populates="post",
+        cascade="all, delete-orphan",
+        order_by="PostVersion.version_number",
     )
     images: Mapped[list[Image]] = relationship(back_populates="post", cascade="all, delete-orphan")
     telegram_messages: Mapped[list[TelegramMessage]] = relationship(
@@ -146,6 +149,9 @@ class Post(Base):
 
 class PostVersion(Base):
     __tablename__ = "post_versions"
+    __table_args__ = (
+        Index("ix_post_versions_post_version", "post_id", "version_number"),
+    )
     id: Mapped[uuid.UUID] = uuid_column()
     post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("posts.id"))
     version_number: Mapped[int] = mapped_column(Integer)
