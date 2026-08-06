@@ -1,5 +1,6 @@
 import json
 import time
+from pathlib import Path
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -11,6 +12,7 @@ from app.workflows.post_generation.outputs import (
     CTAOutput,
     GrammarOutput,
     HookOutput,
+    ImagePromptOutput,
     JudgeOutput,
     PlanOutput,
     ReviewOutput,
@@ -212,6 +214,102 @@ class TranslatorNode(LLMPostNode):
             "content": output.content,
             "language": output.language,
             "revisions": self.revision(self.name, output.content),
+        }
+
+
+class ImageGenerationNode(LLMPostNode):
+    def __init__(
+        self,
+        config,
+        prompt_engine,
+        image_providers,
+        image_storage,
+        provider_order,
+    ) -> None:
+        super().__init__(config, prompt_engine)
+        self.image_providers = image_providers
+        self.image_storage = image_storage
+        self.provider_order = provider_order
+
+    def invoke(self, state: PostGenerationState, context: ExecutionContext) -> dict[str, Any]:
+        mode = state.get("image_mode", "none")
+        if mode == "none":
+            return {"image_review_status": "skipped"}
+        if mode == "upload":
+            if not state.get("image_upload_id"):
+                raise ValueError("Image upload ID is required for upload mode")
+            path = self.image_storage.resolve_upload(state["image_upload_id"])
+            return {
+                "image_path": str(path),
+                "image_content_type": self.image_storage.content_type_for(path),
+                "image_review_status": "pending",
+                "image_provider": "upload",
+                "image_model": "existing_upload",
+            }
+        if mode != "ai":
+            raise ValueError(f"Unsupported image mode '{mode}'")
+        prompt = state.get("image_prompt")
+        if not prompt:
+            prompt_output = self.run_model(state, context, ImagePromptOutput)
+            prompt = prompt_output.prompt
+        started = time.perf_counter()
+        try:
+            result = self.image_providers.generate_with_fallback(
+                prompt, list(context.variables.get("image_provider_order", self.provider_order))
+            )
+        except Exception as exc:
+            context.record_telemetry(
+                {
+                    "node_name": f"{self.name}.provider",
+                    "status": "failed",
+                    "latency_ms": (time.perf_counter() - started) * 1000,
+                    "error_message": str(exc),
+                }
+            )
+            raise
+        context.record_telemetry(
+            {
+                "node_name": f"{self.name}.provider",
+                "status": "completed",
+                "latency_ms": (time.perf_counter() - started) * 1000,
+                "provider": result.provider,
+                "model_name": result.model,
+            }
+        )
+        path = self.image_storage.persist_for_post(
+            context.execution_id, result.content, result.content_type, "generated"
+        )
+        width, height, _ = self.image_storage.inspect(path)
+        return {
+            "image_path": str(path),
+            "image_prompt": prompt,
+            "image_provider": result.provider,
+            "image_model": result.model,
+            "image_content_type": result.content_type,
+            "image_width": width,
+            "image_height": height,
+            "image_review_status": "pending",
+        }
+
+
+class ImageReviewNode(BaseWorkflowNode[PostGenerationState]):
+    def __init__(self, config, image_storage) -> None:
+        super().__init__(config)
+        self.image_storage = image_storage
+
+    def invoke(self, state: PostGenerationState, context: ExecutionContext) -> dict[str, Any]:
+        if state.get("image_mode", "none") == "none":
+            return {"image_review_status": "skipped"}
+        path = state.get("image_path")
+        if not path:
+            raise ValueError("Image path is missing")
+        width, height, _ = self.image_storage.inspect(Path(path))
+        if width < 256 or height < 256:
+            raise ValueError("Image must be at least 256x256 pixels")
+        return {
+            "image_width": width,
+            "image_height": height,
+            "image_review_status": "approved",
         }
 
 

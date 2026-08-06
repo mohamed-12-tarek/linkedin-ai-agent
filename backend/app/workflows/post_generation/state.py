@@ -19,6 +19,16 @@ class PostGenerationState(GraphState, total=False):
     cta_type: str
     emoji_level: str
     hashtag_mode: str
+    image_mode: str
+    image_prompt: str | None
+    image_upload_id: str | None
+    image_path: str | None
+    image_provider: str | None
+    image_model: str | None
+    image_content_type: str | None
+    image_width: int | None
+    image_height: int | None
+    image_review_status: str | None
     plan: dict[str, Any]
     content: str
     hook: str

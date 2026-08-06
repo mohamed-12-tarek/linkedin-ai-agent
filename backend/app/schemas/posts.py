@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PostGenerateRequest(BaseModel):
@@ -17,6 +17,17 @@ class PostGenerateRequest(BaseModel):
     cta_type: str = Field(default="engagement", min_length=1, max_length=100)
     emoji_level: Literal["none", "low", "medium", "high"] = "low"
     hashtag_mode: Literal["none", "auto", "custom"] = "auto"
+    image_mode: Literal["none", "upload", "ai"] = "none"
+    image_upload_id: str | None = Field(default=None, pattern="^[a-f0-9]{32}$")
+    image_prompt: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def validate_image_mode(self) -> "PostGenerateRequest":
+        if self.image_mode == "upload" and not self.image_upload_id:
+            raise ValueError("image_upload_id is required when image_mode is upload")
+        if self.image_mode != "upload" and self.image_upload_id:
+            raise ValueError("image_upload_id is only valid when image_mode is upload")
+        return self
 
 
 class PostVersionRead(BaseModel):

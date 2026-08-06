@@ -59,6 +59,13 @@ POST_GENERATION_CONFIG = WorkflowConfig(
             prompt_template="translator",
         ),
         NodeConfig(
+            id="image_generation",
+            type="post.image_generation",
+            model_role=ModelRole.WRITER,
+            prompt_template="image_prompt",
+        ),
+        NodeConfig(id="image_review", type="post.image_review"),
+        NodeConfig(
             id="telegram_approval",
             type="post.approval_boundary",
             routes={
@@ -86,7 +93,9 @@ POST_GENERATION_CONFIG = WorkflowConfig(
         EdgeConfig(source="hook_optimizer", target="cta_optimizer"),
         EdgeConfig(source="cta_optimizer", target="grammar_checker"),
         EdgeConfig(source="grammar_checker", target="final_judge"),
-        EdgeConfig(source="final_judge", target="telegram_approval"),
+        EdgeConfig(source="final_judge", target="image_generation"),
+        EdgeConfig(source="image_generation", target="image_review"),
+        EdgeConfig(source="image_review", target="telegram_approval"),
         EdgeConfig(source="telegram_approval", target="linkedin_publisher"),
         EdgeConfig(source="telegram_approval", target="rejection"),
         EdgeConfig(source="telegram_approval", target="writer"),

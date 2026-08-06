@@ -31,7 +31,11 @@ def get_post_service(db: DatabaseSession, container: Container) -> PostGeneratio
         workflow = container.graph_registry.get("post_generation", "1.0.0")
     except RegistryError:
         workflow = build_post_generation_workflow(
-            container.prompt_engine, checkpointer=container.checkpoint_store.saver
+            container.prompt_engine,
+            checkpointer=container.checkpoint_store.saver,
+            image_providers=container.image_providers,
+            image_storage=container.image_storage,
+            image_provider_order=container.settings.image_provider_names,
         )
         try:
             container.graph_registry.register(workflow)
@@ -46,6 +50,7 @@ def get_post_service(db: DatabaseSession, container: Container) -> PostGeneratio
         container.prompt_engine,
         TelegramClient(container.settings),
         container.settings.telegram_chat_id,
+        container.image_storage,
     )
     return PostGenerationService(
         post_repository,

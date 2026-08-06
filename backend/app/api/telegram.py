@@ -46,7 +46,11 @@ def telegram_webhook(
     registry = ModelRegistryService(ModelRegistryRepository(db), container.encryption)
     model_factory = LangChainChatModelFactory(registry, container.settings)
     workflow = build_post_generation_workflow(
-        container.prompt_engine, checkpointer=container.checkpoint_store.saver
+        container.prompt_engine,
+        checkpointer=container.checkpoint_store.saver,
+        image_providers=container.image_providers,
+        image_storage=container.image_storage,
+        image_provider_order=container.settings.image_provider_names,
     )
     service = WorkflowApprovalService(
         WorkflowExecutionRepository(db),
@@ -56,6 +60,7 @@ def telegram_webhook(
         container.prompt_engine,
         telegram,
         container.settings.telegram_chat_id,
+        container.image_storage,
     )
     try:
         execution = service.resume(

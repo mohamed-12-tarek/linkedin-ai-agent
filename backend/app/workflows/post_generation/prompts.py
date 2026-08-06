@@ -1,6 +1,15 @@
 from app.workflows.prompts import PromptTemplate
 
 POST_PROMPTS = {
+    "image_prompt": PromptTemplate(
+        name="post.image_prompt",
+        system_template=(
+            "You create a concise visual prompt for a professional LinkedIn post. "
+            "Avoid text, logos, trademarks, and identifiable private people."
+        ),
+        user_template="Topic: {topic}\nDescription: {description}\nPost: {content}",
+        output_instructions='Return JSON only: {"prompt": string}.',
+    ),
     "planner": PromptTemplate(
         name="post.planner",
         system_template=(

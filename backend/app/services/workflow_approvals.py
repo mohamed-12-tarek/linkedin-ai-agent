@@ -3,6 +3,7 @@ import uuid
 from datetime import UTC, datetime
 
 from app.models import (
+    Image,
     PostVersion,
     TelegramMessage,
     WorkflowAction,
@@ -35,6 +36,7 @@ class WorkflowApprovalService:
         prompt_engine,
         telegram,
         default_chat_id: str,
+        image_storage,
     ) -> None:
         self.executions = execution_repository
         self.posts = post_repository
@@ -43,6 +45,7 @@ class WorkflowApprovalService:
         self.prompt_engine = prompt_engine
         self.telegram = telegram
         self.default_chat_id = default_chat_id
+        self.image_storage = image_storage
 
     def list_executions(self, user_id: uuid.UUID) -> list[WorkflowExecutionRead]:
         return [
@@ -198,6 +201,7 @@ class WorkflowApprovalService:
         post.language = result.get("language", post.language)
         post.tone = result.get("tone", post.tone)
         post.length = result.get("length", post.length)
+        self._persist_image(post, result)
         execution.current_node = result.get("current_node")
         execution.state_json = json.dumps(result, default=str)
         interrupted = bool(result.get("__interrupt__"))
@@ -225,11 +229,56 @@ class WorkflowApprovalService:
         chat_id = execution.user.telegram_chat_id or self.default_chat_id
         if not chat_id or not post.content:
             return
-        message_id = self.telegram.send_approval(chat_id, execution.id, post.content)
+        selected_image = next((image for image in post.images if image.is_selected), None)
+        image_path = selected_image.url if selected_image is not None else None
+        message_id = self.telegram.send_approval(
+            chat_id,
+            execution.id,
+            post.content,
+            image_path=image_path,
+        )
         self.executions.session.add(
             TelegramMessage(post_id=post.id, telegram_message_id=message_id)
         )
         self.executions.session.commit()
+
+    def _persist_image(self, post, result: dict) -> None:
+        path_value = result.get("image_path")
+        review_status = result.get("image_review_status")
+        if not path_value or review_status != "approved":
+            return
+        from pathlib import Path
+
+        source_path = Path(path_value)
+        if not source_path.exists():
+            raise FileNotFoundError("Reviewed image file is missing")
+        if post.images and any(image.url == str(source_path) for image in post.images):
+            return
+        content_type = result.get("image_content_type") or self.image_storage.content_type_for(
+            source_path
+        )
+        target_path = self.image_storage.persist_for_post(
+            post.id,
+            source_path.read_bytes(),
+            content_type,
+            result.get("image_provider") or "image",
+        )
+        for image in post.images:
+            image.is_selected = False
+        self.executions.session.add(
+            Image(
+                post_id=post.id,
+                source=result.get("image_provider") or "upload",
+                prompt_used=result.get("image_prompt"),
+                model_used=result.get("image_model"),
+                url=str(target_path),
+                is_selected=True,
+                content_type=content_type,
+                width=result.get("image_width"),
+                height=result.get("image_height"),
+                review_status=review_status,
+            )
+        )
 
     @staticmethod
     def _target_language(execution: WorkflowExecution) -> str:

@@ -60,6 +60,15 @@ class Settings(BaseSettings):
     pollinations_model: str = "flux"
     huggingface_api_token: str = ""
     huggingface_image_model: str = "black-forest-labs/FLUX.1-schnell"
+    openai_api_key: str = ""
+    openai_image_model: str = "gpt-image-1"
+    image_provider_order: str = "pollinations,huggingface,openai"
+    max_image_upload_mb: int = 10
+
+    @computed_field
+    @property
+    def image_provider_names(self) -> list[str]:
+        return [name.strip() for name in self.image_provider_order.split(",") if name.strip()]
 
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

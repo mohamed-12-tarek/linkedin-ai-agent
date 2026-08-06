@@ -60,6 +60,9 @@ class PostGenerationService:
             "cta_type": data.cta_type,
             "emoji_level": data.emoji_level,
             "hashtag_mode": data.hashtag_mode,
+            "image_mode": data.image_mode,
+            "image_upload_id": data.image_upload_id,
+            "image_prompt": data.image_prompt,
             "completed_nodes": [],
             "errors": [],
             "revisions": [],
@@ -181,6 +184,7 @@ class PostGenerationService:
                 "cta_type": post.cta_type,
                 "emoji_level": post.emoji_level,
                 "hashtag_mode": post.hashtag_mode,
+                "image_mode": "none",
             }
         )
         return ExecutionContext(

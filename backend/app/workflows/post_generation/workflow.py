@@ -5,6 +5,8 @@ from app.workflows.post_generation.nodes import (
     FinalJudgeNode,
     GrammarCheckerNode,
     HookOptimizerNode,
+    ImageGenerationNode,
+    ImageReviewNode,
     PlannerNode,
     PublisherBoundaryNode,
     RejectionNode,
@@ -16,7 +18,13 @@ from app.workflows.post_generation.state import PostGenerationState
 from app.workflows.registry import NodeRegistry
 
 
-def build_post_generation_workflow(prompt_engine, checkpointer=None):
+def build_post_generation_workflow(
+    prompt_engine,
+    checkpointer=None,
+    image_providers=None,
+    image_storage=None,
+    image_provider_order=(),
+):
     from app.workflows.workflow import WorkflowBuilder
 
     registry = NodeRegistry()
@@ -32,6 +40,17 @@ def build_post_generation_workflow(prompt_engine, checkpointer=None):
     )
     registry.register("post.final_judge", lambda config: FinalJudgeNode(config, prompt_engine))
     registry.register("post.translator", lambda config: TranslatorNode(config, prompt_engine))
+    registry.register(
+        "post.image_generation",
+        lambda config: ImageGenerationNode(
+            config,
+            prompt_engine,
+            image_providers,
+            image_storage,
+            image_provider_order,
+        ),
+    )
+    registry.register("post.image_review", lambda config: ImageReviewNode(config, image_storage))
     registry.register("post.approval_boundary", ApprovalBoundaryNode)
     registry.register("post.publisher_boundary", PublisherBoundaryNode)
     registry.register("post.rejection", RejectionNode)

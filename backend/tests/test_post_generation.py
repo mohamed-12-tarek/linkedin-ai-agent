@@ -126,6 +126,8 @@ def test_graph_1_runs_all_nodes_with_fake_models() -> None:
         "cta_optimizer",
         "grammar_checker",
         "final_judge",
+        "image_generation",
+        "image_review",
     ]
     assert result["content"] == "A final practical post."
     assert result["judge_approved"] is True

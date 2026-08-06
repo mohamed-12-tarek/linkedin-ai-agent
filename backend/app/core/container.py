@@ -3,6 +3,11 @@ from dataclasses import dataclass
 from app.core.config import Settings
 from app.core.security import EncryptionService
 from app.db.session import Database
+from app.integrations.images import (
+    ImageProviderRegistry,
+    LocalImageStorage,
+    build_image_provider_registry,
+)
 from app.workflows.checkpoints import WorkflowCheckpointStore
 from app.workflows.prompts import PromptEngine
 from app.workflows.registry import GraphRegistry, NodeRegistry
@@ -19,6 +24,8 @@ class ApplicationContainer:
     node_registry: NodeRegistry
     graph_registry: GraphRegistry
     checkpoint_store: WorkflowCheckpointStore
+    image_providers: ImageProviderRegistry
+    image_storage: LocalImageStorage
 
 
 def create_container(settings: Settings) -> ApplicationContainer:
@@ -32,4 +39,6 @@ def create_container(settings: Settings) -> ApplicationContainer:
         node_registry=NodeRegistry(),
         graph_registry=GraphRegistry(),
         checkpoint_store=WorkflowCheckpointStore(settings),
+        image_providers=build_image_provider_registry(settings),
+        image_storage=LocalImageStorage(settings),
     )

@@ -169,6 +169,7 @@ class PostVersion(Base):
 
 class Image(Base):
     __tablename__ = "images"
+    __table_args__ = (Index("ix_images_post_selected", "post_id", "is_selected"),)
     id: Mapped[uuid.UUID] = uuid_column()
     post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("posts.id"))
     source: Mapped[str] = mapped_column(String)
@@ -176,6 +177,10 @@ class Image(Base):
     model_used: Mapped[str | None] = mapped_column(String, nullable=True)
     url: Mapped[str] = mapped_column(String)
     is_selected: Mapped[bool] = mapped_column(Boolean, default=False)
+    content_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    review_status: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = created_at_column()
     post: Mapped[Post] = relationship(back_populates="images")
 

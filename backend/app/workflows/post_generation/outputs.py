@@ -32,6 +32,10 @@ class TranslationOutput(ContentOutput):
     language: str = Field(min_length=1)
 
 
+class ImagePromptOutput(BaseModel):
+    prompt: str = Field(min_length=1, max_length=2_000)
+
+
 class JudgeOutput(ContentOutput):
     approved: bool
     score: float = Field(ge=0, le=100)
