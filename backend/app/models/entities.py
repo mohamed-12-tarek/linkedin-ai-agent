@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -14,7 +14,7 @@ def uuid_column() -> Mapped[uuid.UUID]:
 
 
 def created_at_column() -> Mapped[datetime]:
-    return mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    return mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class User(Base):
@@ -46,7 +46,7 @@ class User(Base):
     llm_models: Mapped[list[LLMModel]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    settings: Mapped[Settings | None] = relationship(
+    settings: Mapped[UserSettings | None] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
@@ -120,7 +120,9 @@ class Post(Base):
     status: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = created_at_column()
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
     user: Mapped[User] = relationship(back_populates="posts")
     style: Mapped[Style | None] = relationship(back_populates="posts")
@@ -261,7 +263,7 @@ class JobMatch(Base):
     job_listing: Mapped[JobListing] = relationship(back_populates="job_matches")
 
 
-class Settings(Base):
+class UserSettings(Base):
     __tablename__ = "settings"
     id: Mapped[uuid.UUID] = uuid_column()
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), unique=True)

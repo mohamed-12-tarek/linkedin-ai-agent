@@ -11,10 +11,10 @@ from app.models.entities import (
     Prompt,
     PublishHistory,
     Schedule,
-    Settings,
     Style,
     TelegramMessage,
     User,
+    UserSettings,
 )
 
 __all__ = [
@@ -30,8 +30,8 @@ __all__ = [
     "Prompt",
     "PublishHistory",
     "Schedule",
-    "Settings",
     "Style",
     "TelegramMessage",
     "User",
+    "UserSettings",
 ]
