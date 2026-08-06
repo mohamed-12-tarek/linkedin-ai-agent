@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from cryptography.fernet import Fernet
 from pydantic import computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -98,6 +99,11 @@ class Settings(BaseSettings):
         if invalid_names:
             names = ", ".join(invalid_names)
             raise ValueError(f"Secure values are required for {names} in {self.app_env}")
+
+        try:
+            Fernet(self.encryption_key.encode())
+        except (TypeError, ValueError) as exc:
+            raise ValueError("ENCRYPTION_KEY must be a valid Fernet key") from exc
 
         return self
 

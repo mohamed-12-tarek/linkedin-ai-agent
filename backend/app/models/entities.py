@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -53,6 +53,9 @@ class User(Base):
 
 class LLMModel(Base):
     __tablename__ = "llm_models"
+    __table_args__ = (
+        Index("ix_llm_models_user_role_available", "user_id", "role_type", "is_available"),
+    )
 
     id: Mapped[uuid.UUID] = uuid_column()
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
