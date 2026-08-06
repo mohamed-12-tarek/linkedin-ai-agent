@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linkedin-content-agent-api"
+version = "0.1.0"
+description = "FastAPI backend for the AI LinkedIn Content Agent"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.14,<2",
+    "apscheduler>=3.11,<4",
+    "cryptography>=44,<46",
+    "email-validator>=2.2,<3",
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "langchain>=0.3,<1",
+    "langchain-google-genai>=2,<4",
+    "langchain-groq>=0.3,<1",
+    "langgraph>=0.4,<2",
+    "passlib[bcrypt]>=1.7,<2",
+    "pdfplumber>=0.11,<1",
+    "psycopg[binary]>=3.2,<4",
+    "pydantic-settings>=2.7,<3",
+    "python-docx>=1.1,<2",
+    "python-jose[cryptography]>=3.3,<4",
+    "python-multipart>=0.0.20,<1",
+    "sqlalchemy>=2.0,<3",
+    "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.14,<2",
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.25,<1",
+    "ruff>=0.9,<1",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
