@@ -41,5 +41,6 @@ class PostGenerationState(GraphState, total=False):
     judge_approved: bool
     approval_required: bool
     publishing_deferred: bool
+    published: bool
     status: str
     revisions: Annotated[list[NodeRevision], operator.add]

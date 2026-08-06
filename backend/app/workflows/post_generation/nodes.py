@@ -339,9 +339,9 @@ class ApprovalBoundaryNode(BaseWorkflowNode[PostGenerationState]):
 class PublisherBoundaryNode(BaseWorkflowNode[PostGenerationState]):
     def invoke(self, state: PostGenerationState, context: ExecutionContext) -> dict[str, Any]:
         return {
-            "publishing_deferred": True,
+            "publishing_deferred": False,
             "approval_required": False,
-            "status": "approved",
+            "status": "publishing",
         }
 
 

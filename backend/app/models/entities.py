@@ -219,11 +219,22 @@ class LinkedInAccount(Base):
 
 class PublishHistory(Base):
     __tablename__ = "publish_history"
+    __table_args__ = (
+        Index("ix_publish_history_post_provider_status", "post_id", "provider", "status"),
+    )
     id: Mapped[uuid.UUID] = uuid_column()
     post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("posts.id"))
     linkedin_post_id: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String)
-    published_at: Mapped[datetime] = created_at_column()
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    provider: Mapped[str] = mapped_column(String, default="linkedin")
+    published_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    idempotency_key: Mapped[str] = mapped_column(String, unique=True)
+    provider_metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = created_at_column()
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     post: Mapped[Post] = relationship(back_populates="publish_history")
 
 

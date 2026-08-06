@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     linkedin_client_secret: str = ""
     linkedin_redirect_uri: str = "http://localhost:8000/api/v1/linkedin/oauth/callback"
     linkedin_scopes: str = "openid,profile,w_member_social"
+    linkedin_api_version: str = "202601"
+    linkedin_dry_run: bool = False
+    publisher_max_retries: int = 3
+    publisher_retry_delay_seconds: float = 1.0
 
     adzuna_app_id: str = ""
     adzuna_app_key: str = ""

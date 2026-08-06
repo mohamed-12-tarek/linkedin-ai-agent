@@ -6,9 +6,11 @@ from app.core.dependencies import Container, DatabaseSession
 from app.integrations.telegram import TelegramClient
 from app.repositories.model_registry import ModelRegistryRepository
 from app.repositories.posts import PostRepository
+from app.repositories.publishing import PublishingRepository
 from app.repositories.workflow_executions import WorkflowExecutionRepository
 from app.schemas.telegram import TelegramUpdate
 from app.services.model_registry import ModelRegistryService
+from app.services.publishing import PublisherService
 from app.services.workflow_approvals import (
     TelegramChatMismatchError,
     WorkflowApprovalService,
@@ -61,6 +63,12 @@ def telegram_webhook(
         telegram,
         container.settings.telegram_chat_id,
         container.image_storage,
+        PublisherService(
+            PublishingRepository(db),
+            container.publishers,
+            container.encryption,
+            container.settings,
+        ),
     )
     try:
         execution = service.resume(

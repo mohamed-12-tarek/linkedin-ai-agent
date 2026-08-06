@@ -7,6 +7,7 @@ from app.core.dependencies import Container, CurrentUserId, DatabaseSession
 from app.integrations.telegram import TelegramClient
 from app.repositories.model_registry import ModelRegistryRepository
 from app.repositories.posts import PostRepository
+from app.repositories.publishing import PublishingRepository
 from app.repositories.workflow_executions import WorkflowExecutionRepository
 from app.schemas.posts import PostGenerateRequest, PostRead
 from app.services.model_registry import ModelRegistryService
@@ -15,6 +16,7 @@ from app.services.posts import (
     PostNotFoundError,
     StyleNotFoundError,
 )
+from app.services.publishing import PublisherService
 from app.services.workflow_approvals import WorkflowApprovalService
 from app.workflows.post_generation.workflow import build_post_generation_workflow
 from app.workflows.registry import RegistryError
@@ -51,6 +53,12 @@ def get_post_service(db: DatabaseSession, container: Container) -> PostGeneratio
         TelegramClient(container.settings),
         container.settings.telegram_chat_id,
         container.image_storage,
+        PublisherService(
+            PublishingRepository(db),
+            container.publishers,
+            container.encryption,
+            container.settings,
+        ),
     )
     return PostGenerationService(
         post_repository,

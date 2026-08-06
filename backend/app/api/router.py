@@ -2,8 +2,10 @@ from fastapi import APIRouter
 
 from app.api.history import router as history_router
 from app.api.images import router as images_router
+from app.api.linkedin import router as linkedin_router
 from app.api.models import router as models_router
 from app.api.posts import router as posts_router
+from app.api.publishing import router as publishing_router
 from app.api.telegram import router as telegram_router
 
 api_router = APIRouter()
@@ -12,6 +14,8 @@ api_router.include_router(posts_router)
 api_router.include_router(telegram_router)
 api_router.include_router(history_router)
 api_router.include_router(images_router)
+api_router.include_router(linkedin_router)
+api_router.include_router(publishing_router)
 
 
 @api_router.get("/", tags=["system"])

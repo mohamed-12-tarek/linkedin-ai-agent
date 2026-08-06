@@ -37,6 +37,7 @@ class WorkflowApprovalService:
         telegram,
         default_chat_id: str,
         image_storage,
+        publisher_service=None,
     ) -> None:
         self.executions = execution_repository
         self.posts = post_repository
@@ -46,6 +47,7 @@ class WorkflowApprovalService:
         self.telegram = telegram
         self.default_chat_id = default_chat_id
         self.image_storage = image_storage
+        self.publisher_service = publisher_service
 
     def list_executions(self, user_id: uuid.UUID) -> list[WorkflowExecutionRead]:
         return [
@@ -133,6 +135,12 @@ class WorkflowApprovalService:
         try:
             result = self.workflow.resume(action, context, execution.thread_id)
             self._apply_result(execution, execution.post, result)
+            if action == "approve" and self.publisher_service is not None:
+                history = self.publisher_service.publish(execution.user_id, execution.post_id)
+                execution.post.status = history.status
+                execution.status = history.status
+                execution.completed_at = datetime.now(UTC)
+                result["published"] = history.status in {"published", "dry_run"}
             self.executions.mark_latest_telegram_action(execution.post_id, action)
             action_record.status = "processed"
             action_record.processed_at = datetime.now(UTC)
@@ -146,6 +154,8 @@ class WorkflowApprovalService:
                 failed_action.processed_at = datetime.now(UTC)
             if failed_execution is not None:
                 failed_execution.status = "awaiting_approval"
+                failed_execution.post.status = "awaiting_approval"
+                failed_execution.completed_at = None
             self.executions.session.commit()
             raise
         if execution.status == "awaiting_approval":

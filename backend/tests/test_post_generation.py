@@ -142,8 +142,8 @@ def test_graph_1_runs_all_nodes_with_fake_models() -> None:
     ]
 
     approved = workflow.resume("approve", context, str(context.execution_id))
-    assert approved["status"] == "approved"
-    assert approved["publishing_deferred"] is True
+    assert approved["status"] == "publishing"
+    assert approved["publishing_deferred"] is False
     assert approved["completed_nodes"][-2:] == ["telegram_approval", "linkedin_publisher"]
 
 
