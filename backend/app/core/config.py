@@ -20,16 +20,14 @@ class Settings(BaseSettings):
     app_port: int = 8000
     api_v1_prefix: str = "/api/v1"
     frontend_url: str = "http://localhost:8501"
+    backend_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:8501"
     log_level: str = "INFO"
 
-    database_url: str = (
-        "postgresql+psycopg://linkedin_agent:linkedin_agent_local_password@localhost:5432/"
-        "linkedin_agent"
-    )
-    postgres_db: str = "linkedin_agent"
-    postgres_user: str = "linkedin_agent"
-    postgres_password: str = "linkedin_agent_local_password"
+    database_url: str = ""
+    postgres_db: str = ""
+    postgres_user: str = ""
+    postgres_password: str = ""
     postgres_port: int = 5432
     storage_backend: str = "local"
     local_storage_path: str = "./storage"
@@ -103,7 +101,7 @@ class Settings(BaseSettings):
 
         invalid_secrets = {
             "JWT_SECRET_KEY": self.jwt_secret_key
-            == "local-development-secret-change-before-deployment"
+            == "replace-with-a-long-random-value"
             or len(self.jwt_secret_key) < 32,
             "ENCRYPTION_KEY": not self.encryption_key
             or self.encryption_key == "replace-with-a-valid-fernet-key",

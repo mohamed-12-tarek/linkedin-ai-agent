@@ -9,8 +9,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "c3d7a46e21bf"
-down_revision: str | None = "8f2c61e4a9d7"
+revision: str = "c3d7a46e21bf"  # pragma: allowlist secret
+down_revision: str | None = "8f2c61e4a9d7"  # pragma: allowlist secret
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

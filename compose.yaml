@@ -2,15 +2,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-linkedin_agent}
-      POSTGRES_USER: ${POSTGRES_USER:-linkedin_agent}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-linkedin_agent_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env and set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env and set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-linkedin_agent} -d ${POSTGRES_DB:-linkedin_agent}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,14 +27,31 @@ services:
       APP_PORT: 8000
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8501}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8501}
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://linkedin_agent:linkedin_agent_local_password@db:5432/linkedin_agent}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:?Copy .env.example to .env and set DATABASE_URL}
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
       LOCAL_STORAGE_PATH: /app/storage
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-development-secret-change-before-deployment}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-linkedin-agent}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Copy .env.example to .env and set JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Copy .env.example to .env and set ENCRYPTION_KEY}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      OPENROUTER_APP_NAME: ${OPENROUTER_APP_NAME:-AI LinkedIn Content Agent}
+      OPENROUTER_SITE_URL: ${OPENROUTER_SITE_URL:-http://localhost:8501}
+      DEFAULT_WRITER_MODEL: ${DEFAULT_WRITER_MODEL:-}
+      DEFAULT_REVIEWER_MODEL: ${DEFAULT_REVIEWER_MODEL:-}
+      DEFAULT_JUDGE_MODEL: ${DEFAULT_JUDGE_MODEL:-}
+      DEFAULT_TRANSLATION_MODEL: ${DEFAULT_TRANSLATION_MODEL:-}
       HUGGINGFACE_API_TOKEN: ${HUGGINGFACE_API_TOKEN:-}
       POLLINATIONS_BASE_URL: ${POLLINATIONS_BASE_URL:-https://image.pollinations.ai}
       POLLINATIONS_MODEL: ${POLLINATIONS_MODEL:-flux}
@@ -50,12 +67,14 @@ services:
       LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
       LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
       LINKEDIN_REDIRECT_URI: ${LINKEDIN_REDIRECT_URI:-http://localhost:8000/api/v1/linkedin/oauth/callback}
+      LINKEDIN_SCOPES: ${LINKEDIN_SCOPES:-openid,profile,w_member_social}
       LINKEDIN_API_VERSION: ${LINKEDIN_API_VERSION:-202601}
       LINKEDIN_DRY_RUN: ${LINKEDIN_DRY_RUN:-false}
       PUBLISHER_MAX_RETRIES: ${PUBLISHER_MAX_RETRIES:-3}
       PUBLISHER_RETRY_DELAY_SECONDS: ${PUBLISHER_RETRY_DELAY_SECONDS:-1.0}
       ADZUNA_APP_ID: ${ADZUNA_APP_ID:-}
       ADZUNA_APP_KEY: ${ADZUNA_APP_KEY:-}
+      ADZUNA_COUNTRY: ${ADZUNA_COUNTRY:-us}
       SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
       SCHEDULER_TIMEZONE: ${SCHEDULER_TIMEZONE:-UTC}
     ports:
@@ -80,9 +99,9 @@ services:
     command: ["alembic", "upgrade", "head"]
     environment:
       APP_ENV: ${APP_ENV:-development}
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://linkedin_agent:linkedin_agent_local_password@db:5432/linkedin_agent}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-development-secret-change-before-deployment}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      DATABASE_URL: ${DATABASE_URL:?Copy .env.example to .env and set DATABASE_URL}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Copy .env.example to .env and set JWT_SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Copy .env.example to .env and set ENCRYPTION_KEY}
     depends_on:
       db:
         condition: service_healthy

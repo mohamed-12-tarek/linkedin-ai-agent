@@ -10,7 +10,7 @@ def test_telegram_webhook_rejects_invalid_secret_before_processing() -> None:
     app = create_app(
         Settings(
             database_url="sqlite:///:memory:",
-            telegram_webhook_secret="expected-secret",
+            telegram_webhook_secret="expected-secret",  # pragma: allowlist secret
         )
     )
 
@@ -34,7 +34,7 @@ def test_telegram_webhook_accepts_non_callback_updates() -> None:
     app = create_app(
         Settings(
             database_url="sqlite:///:memory:",
-            telegram_webhook_secret="expected-secret",
+            telegram_webhook_secret="expected-secret",  # pragma: allowlist secret
         )
     )
 

@@ -24,7 +24,7 @@ def add_user(session: Session) -> User:
     user = User(
         id=uuid.uuid4(),
         email=f"{uuid.uuid4()}@example.com",
-        password_hash="hash",
+        password_hash="hash",  # pragma: allowlist secret
     )
     session.add(user)
     session.commit()
@@ -42,7 +42,7 @@ def test_model_registry_is_tenant_scoped_and_redacts_api_key() -> None:
             name="llama-3.3-70b",
             provider="groq",
             role_type="writer",
-            api_key="owner-secret",
+            api_key="owner-secret",  # pragma: allowlist secret
         ),
     )
 
@@ -53,8 +53,8 @@ def test_model_registry_is_tenant_scoped_and_redacts_api_key() -> None:
 
     stored = session.scalar(select(LLMModel).where(LLMModel.id == created.id))
     assert stored is not None
-    assert stored.api_key_encrypted != "owner-secret"
-    assert service.decrypt_api_key(stored) == "owner-secret"
+    assert stored.api_key_encrypted != "owner-secret"  # pragma: allowlist secret
+    assert service.decrypt_api_key(stored) == "owner-secret"  # pragma: allowlist secret
 
     try:
         service.update_model(other_user.id, created.id, ModelUpdate(name="hijack"))

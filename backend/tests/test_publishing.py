@@ -226,7 +226,7 @@ def test_linkedin_oauth_exchange_and_profile_lookup_use_mock_http() -> None:
 
     settings = Settings(
         linkedin_client_id="client",
-        linkedin_client_secret="secret",
+        linkedin_client_secret="secret",  # pragma: allowlist secret
         linkedin_redirect_uri="http://localhost/callback",
     )
     publisher = LinkedInPublisher(

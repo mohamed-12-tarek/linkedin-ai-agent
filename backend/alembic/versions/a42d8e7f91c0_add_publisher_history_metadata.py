@@ -11,8 +11,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "a42d8e7f91c0"
-down_revision: str | None = "f82d5a1b7c43"
+revision: str = "a42d8e7f91c0"  # pragma: allowlist secret
+down_revision: str | None = "f82d5a1b7c43"  # pragma: allowlist secret
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

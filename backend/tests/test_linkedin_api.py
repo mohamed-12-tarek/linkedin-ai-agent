@@ -12,7 +12,7 @@ def test_linkedin_oauth_start_returns_signed_expiring_state() -> None:
     settings = Settings(
         database_url="sqlite:///:memory:",
         linkedin_client_id="client-id",
-        linkedin_client_secret="client-secret",
+        linkedin_client_secret="client-secret",  # pragma: allowlist secret
         linkedin_redirect_uri="http://localhost/callback",
     )
     app = create_app(settings)
